@@ -1,0 +1,133 @@
+import os
+import sys
+
+# Ensure backend/src is in path
+sys.path.append(os.path.join(os.getcwd(), 'backend', 'src'))
+
+from audio_monitor import MoroVoiceAssistant
+
+def interactive_workflow():
+    assistant = MoroVoiceAssistant(
+        assets_dir="backend/audio_assets", 
+        config_file="backend/voice_config.json"
+    )
+    
+    print("\n" + "="*50)
+    print("      MORO-AI: MULTILINGUAL VOICE GUIDE SYSTEM")
+    print("="*50)
+    
+    while True:
+        print("\n[MAIN MENU]")
+        print("1. Configure Voice Alerts (Add Text/Language)")
+        print("2. Run System Simulation (Test Triggers)")
+        print("3. Exit")
+        
+        choice = input("\nSelect an option (1-3): ")
+        
+        if choice == '1':
+            while True:
+                print("\n--- STEP 1: SELECT MODEL MODULE ---")
+                print("1. MODEL_1 - Home & Small Business (Security)")
+                print("2. MODEL_2 - Threat & Safety Detection")
+                print("3. MODEL_3 - Dashcam & Road Safety")
+                print("4. MODEL_4 - Smart Human Analytics")
+                print("B. Back to Main Menu")
+                
+                m_choice = input("\nSelect Model (1-4 or B): ").upper()
+                if m_choice == 'B':
+                    break
+                if m_choice not in ['1', '2', '3', '4']:
+                    print("Invalid selection.")
+                    continue
+                    
+                model_id = f"MODEL_{m_choice}"
+                
+                print(f"\n--- STEP 2: CONFIGURE {model_id} EVENT ---")
+                
+                if model_id == "MODEL_2":
+                    print("Special Templates for Threat Detection:")
+                    print("- ANIMAL (e.g., Snake detected outside)")
+                    print("- FIRE (e.g., Fire detected in kitchen)")
+                    print("- SMOKE (e.g., Smoke detected in balcony)")
+                
+                event_type = input("Enter Event Name (e.g. TIGER_ALERT, SOS, WELCOME): ").upper()
+                
+                print("\n--- STEP 3: ENTER MULTILINGUAL TEXT ---")
+                if model_id == "MODEL_2":
+                    suggestion = ""
+                    if "FIRE" in event_type:
+                        suggestion = "Fire detected in [Location]. Please evacuate."
+                    elif "SMOKE" in event_type:
+                        suggestion = "Smoke detected in [Location]. Please investigate."
+                    elif "ANIMAL" in event_type or "TIGER" in event_type:
+                        suggestion = "[Animal Name] detected outside. Stay inside."
+                    
+                    if suggestion:
+                        print(f"Suggestion: {suggestion}")
+                
+                text = input("Enter the text to be spoken: ")
+                
+                print("\n--- STEP 4: PREVIEW & RECORD ---")
+                print("Generating voice preview...")
+                filepath, lang = assistant.generate_audio(model_id, event_type, text)
+                print(f"Detected Language: {lang}")
+                
+                while True:
+                    assistant.preview_audio(filepath)
+                    confirm = input("\nDo you agree to store this audio? (y/n/r for replay): ").lower()
+                    if confirm == 'y':
+                        assistant.add_and_store(model_id, event_type, text, lang)
+                        print(f"DONE! Audio stored for {model_id} -> {event_type}.")
+                        break
+                    elif confirm == 'n':
+                        print("Discarded.")
+                        if os.path.exists(filepath):
+                            os.remove(filepath)
+                        break
+                    elif confirm == 'r':
+                        continue
+                
+                cont = input("\nAdd another phrase for this model? (y/n): ").lower()
+                if cont != 'y':
+                    break
+        
+        elif choice == '2':
+            print("\n--- Starting Moro-AI Simulation ---")
+            if not os.path.exists("backend/voice_config.json"):
+                print("Error: No voices configured. Please use Option 1 first.")
+                continue
+                
+            # Use the assistant initialized at the start of interactive_workflow
+            # No need to re-import or re-initialize unless config changed significantly
+            assistant.load_config() 
+            
+            # Show what's available
+            if not any(assistant.phrases.values()):
+                print("No phrases configured yet.")
+                continue
+
+            print("\nAvailable Voice Alerts:")
+            for m_id, events in assistant.phrases.items():
+                for e_type in events:
+                    print(f"- {m_id}: {e_type}")
+            
+            trigger_m = input("\nEnter Model to trigger (1-4) or 'ALL' to simulate sequence: ").upper()
+            if trigger_m == 'ALL':
+                for m_id in ["MODEL_1", "MODEL_2", "MODEL_3", "MODEL_4"]:
+                    if m_id in assistant.phrases:
+                        for e_type in assistant.phrases[m_id]:
+                            print(f"\n[TRIGGER] {m_id} - {e_type}")
+                            assistant.speak(m_id, e_type)
+            elif trigger_m in ['1', '2', '3', '4']:
+                m_id = f"MODEL_{trigger_m}"
+                e_type = input(f"Enter event for {m_id}: ").upper()
+                assistant.speak(m_id, e_type)
+            else:
+                print("Invalid trigger.")
+                
+        elif choice == '3':
+            print("Shutting down Moro-AI. Goodbye!")
+            break
+
+if __name__ == "__main__":
+    interactive_workflow()
